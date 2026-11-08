@@ -1,0 +1,21 @@
+{
+  "posts": [
+    "https://huggingface.co/lightonai/LightOnOCR-2-1B",
+    "https://github.com/lightonai/LightOnOCR"
+  ],
+  "links": [
+    {
+      "title": "LightOnOCR",
+      "links": [
+        {
+          "title": "LightOnOCR-2-1B (HF)",
+          "value": "https://huggingface.co/lightonai/LightOnOCR-2-1B"
+        },
+        {
+          "title": "LightOnOCR GitHub",
+          "value": "https://github.com/lightonai/LightOnOCR"
+        }
+      ]
+    }
+  ]
+}

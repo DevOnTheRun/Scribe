@@ -1,0 +1,19 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.12
+pydantic>=2.9.0,<2.11
+Pillow>=10.0.0
+numpy>=1.24.0
+pypdfium2>=4.30.0
+openai>=1.40.0
+sympy>=1.12
+huggingface_hub>=0.26.0
+# EPUB export
+ebooklib>=0.18
+Markdown>=3.5
+# Transformers chat-template + weight loading (LightOnOCR runtime)
+jinja2>=3.1.0
+safetensors>=0.4.0
+tokenizers>=0.20.0
+# LightOnOCR needs Transformers v5 (LightOnOcr* APIs)
+git+https://github.com/huggingface/transformers.git

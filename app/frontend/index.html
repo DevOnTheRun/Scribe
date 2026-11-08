@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scribe — Document OCR</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script type="module" src="/static/theme.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <div class="hero-top">
+          <div class="brand-lockup">
+            <img class="brand-mark" src="/static/icon.png" alt="" width="72" height="72" />
+            <h1>Scribe</h1>
+          </div>
+          <button
+            id="settings-open-btn"
+            class="lego-style-bttnsmall settings-gear"
+            type="button"
+            data-lego-show="settings-modal-panel"
+            aria-label="Open settings"
+            title="Settings"
+          >
+            ⚙️
+          </button>
+        </div>
+        <p class="lego-description lego-style-muted">
+          One document per project. OCR every PDF page with LightOnOCR into a single Markdown book.
+        </p>
+      </header>
+
+      <section id="home-panel">
+        <div id="home-notice" class="section-notice lego-hidden" role="status"></div>
+        <div class="lego-tab-folder lego-style-tabs lego-style-tabsactive">
+          <div class="lego-tabs" role="tablist" aria-label="Project actions">
+            <button id="tab-new" class="lego-tab lego-tab-active" type="button" role="tab" aria-selected="true">New document</button>
+            <button id="tab-open" class="lego-tab" type="button" role="tab" aria-selected="false">Open project</button>
+            <div class="lego-tabs-trail" aria-hidden="true"></div>
+          </div>
+          <div class="lego-tab-panel">
+            <div id="panel-new" class="lego-tab-content">
+              <h2>Create a document project</h2>
+              <p class="lego-description lego-style-muted">Each project holds one source PDF (or image) and the full Markdown transcript.</p>
+              <div class="field-row">
+                <label class="lego-label">
+                  Project name
+                  <input id="new-name" class="lego-style-input" type="text" placeholder="Dune — Book 1" />
+                </label>
+                <label class="lego-label">
+                  Description <span class="field-optional lego-style-muted">(optional)</span>
+                  <input id="new-desc" class="lego-style-input" type="text" placeholder="Scan of the hardcover PDF" />
+                </label>
+              </div>
+              <div class="btn-row">
+                <button id="create-btn" class="lego-style-bttnmain" type="button">Create project</button>
+              </div>
+            </div>
+            <div id="panel-open" class="lego-tab-content lego-hidden">
+              <div class="project-list-header">
+                <h2>Saved projects</h2>
+                <div class="project-sort">
+                  <label class="project-sort-field">
+                    <span>Sort by</span>
+                    <select id="project-sort-key" class="lego-style-input" aria-label="Sort projects by">
+                      <option value="name">Name</option>
+                      <option value="created">Created</option>
+                      <option value="updated" selected>Updated</option>
+                    </select>
+                  </label>
+                  <label class="project-sort-field">
+                    <select id="project-sort-dir" class="lego-style-input" aria-label="Sort direction">
+                      <option value="asc">Ascending</option>
+                      <option value="desc" selected>Descending</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div id="project-list" class="project-list"></div>
+              <p id="project-list-empty" class="lego-description lego-style-muted lego-hidden">No projects yet.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div id="project-view" class="lego-hidden">
+        <section class="lego-section lego-style-section project-header-panel">
+          <div class="project-header-row">
+            <div class="project-title-group">
+              <h2 id="project-name"></h2>
+              <button
+                id="edit-project-btn"
+                class="lego-style-bttnsmall"
+                type="button"
+                aria-label="Edit project"
+                title="Edit project"
+                data-lego-show="edit-project-panel"
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+              </button>
+            </div>
+            <button id="close-project-btn" class="lego-style-bttnhollow" type="button">Back to projects</button>
+          </div>
+          <p id="project-desc-display" class="lego-description lego-style-muted project-desc-display lego-hidden"></p>
+          <p id="project-status" class="lego-description lego-style-muted"></p>
+        </section>
+
+        <section class="lego-section lego-style-section">
+          <h2>Source</h2>
+          <div id="doc-notice" class="section-notice lego-hidden" role="status"></div>
+          <p class="lego-description lego-style-muted">Upload a PDF to process page-by-page, or a single image.</p>
+          <label class="lego-label">
+            PDF or image
+            <input id="source-file" class="lego-style-input" type="file" accept=".pdf,image/png,image/jpeg" />
+          </label>
+          <div class="source-meta-row">
+            <span id="source-filename" class="lego-style-muted">No file uploaded</span>
+            <span id="source-meta" class="lego-style-muted"></span>
+          </div>
+          <div class="btn-row">
+            <button id="upload-btn" class="lego-style-bttnmain" type="button">Save source</button>
+          </div>
+        </section>
+
+        <section id="ocr-section" class="lego-section lego-style-section section-gated">
+          <h2>OCR</h2>
+          <div id="ocr-notice" class="section-notice lego-hidden" role="status"></div>
+          <p id="ocr-locked" class="lego-description lego-style-muted section-locked-msg">
+            Save a source above to unlock OCR and Processing.
+          </p>
+          <div id="ocr-body" class="section-gated-body lego-hidden">
+            <p id="ocr-page-count" class="ocr-page-count" aria-live="polite"></p>
+            <p class="lego-description lego-style-muted">
+              Process a page range into separate Markdown files. Re-running a range overwrites those pages.
+              A cover is saved as a JPEG embedded in Markdown (no OCR).
+            </p>
+            <div class="ocr-layout">
+              <div class="ocr-controls">
+                <div class="field-row field-row-compact">
+                  <label class="lego-label">
+                    Start page
+                    <input id="ocr-start-page" class="lego-style-input input-page" type="number" min="1" max="99999" value="1" />
+                  </label>
+                  <label class="lego-label">
+                    End page
+                    <input id="ocr-end-page" class="lego-style-input input-page" type="number" min="1" max="99999" value="1" />
+                  </label>
+                </div>
+                <div class="fade-control">
+                  <label class="lego-label" for="ocr-fade-threshold">
+                    Faint ink / bleed-through
+                    <span id="ocr-fade-threshold-val" class="fade-threshold-val lego-style-muted">Off</span>
+                  </label>
+                  <input
+                    id="ocr-fade-threshold"
+                    class="fade-threshold-range"
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value="0"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-valuenow="0"
+                  />
+                  <p class="lego-description lego-style-muted fade-threshold-hint">
+                    0 = off. Higher values treat tones close to <em>this page’s paper colour</em> as blank
+                    (show-through, faint stains). Real ink and non-paper colours are kept.
+                  </p>
+                </div>
+                <fieldset class="cover-mode-fieldset">
+                  <legend>Cover</legend>
+                  <div class="cover-mode-row" role="radiogroup" aria-label="Cover source">
+                    <label class="cover-mode-option">
+                      <input type="radio" name="cover-mode" value="none" checked />
+                      None
+                    </label>
+                    <label class="cover-mode-option">
+                      <input type="radio" name="cover-mode" value="page" />
+                      PDF page
+                    </label>
+                    <label class="cover-mode-option">
+                      <input type="radio" name="cover-mode" value="upload" />
+                      Upload image
+                    </label>
+                  </div>
+                  <div id="cover-upload-fields" class="cover-upload-fields lego-hidden">
+                    <label class="lego-label">
+                      Cover image
+                      <input id="cover-file" class="lego-style-input" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" />
+                    </label>
+                    <p id="cover-upload-name" class="lego-style-muted cover-upload-name"></p>
+                    <div class="btn-row">
+                      <button id="cover-upload-btn" class="lego-style-bttnmain" type="button">Save cover image</button>
+                    </div>
+                  </div>
+                  <div id="cover-page-fields" class="field-row field-row-compact lego-hidden">
+                    <label class="lego-label">
+                      <span id="ocr-cover-page-label">Cover page</span>
+                      <input id="ocr-cover-page" class="lego-style-input input-page" type="number" min="1" max="99999" value="1" />
+                    </label>
+                    <label class="lego-label">
+                      JPEG quality
+                      <input id="ocr-cover-quality" class="lego-style-input input-page" type="number" min="1" max="95" value="85" />
+                    </label>
+                  </div>
+                  <div id="cover-actions" class="btn-row lego-hidden">
+                    <button id="ocr-clear-cover-btn" class="lego-style-bttnhollow" type="button">Clear cover</button>
+                  </div>
+                </fieldset>
+                <div id="ocr-progress-wrap" class="ocr-progress-wrap lego-hidden">
+                  <div class="ocr-progress-track">
+                    <div id="ocr-progress-bar" class="ocr-progress-bar"></div>
+                  </div>
+                  <p id="ocr-progress-label" class="lego-description lego-style-muted"></p>
+                </div>
+                <div class="btn-row">
+                  <button id="ocr-btn" class="lego-style-bttnmain" type="button">Process pages</button>
+                  <button id="ocr-cancel-btn" class="lego-style-bttnhollow lego-hidden" type="button">Cancel</button>
+                </div>
+              </div>
+              <div class="ocr-cover-preview-col">
+                <h3 class="ocr-cover-preview-title">Cover preview</h3>
+                <button id="cover-preview-btn" class="cover-preview-btn" type="button" disabled title="Open full-size cover">
+                  <img id="cover-preview-img" class="lego-hidden" alt="Cover JPEG preview" />
+                  <span id="cover-preview-empty" class="lego-description lego-style-muted">Choose a PDF cover page or upload an image to preview JPEG quality.</span>
+                </button>
+                <p class="lego-style-muted cover-preview-hint">Click to view full-page and judge quality.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="processing-section" class="lego-section lego-style-section section-gated">
+          <h2>Processing</h2>
+          <p id="processing-locked" class="lego-description lego-style-muted section-locked-msg">
+            Save a source above to unlock Processing.
+          </p>
+          <div id="processing-body" class="section-gated-body lego-hidden">
+          <div class="lego-tab-folder lego-style-tabs lego-style-tabsactive">
+            <div class="lego-tabs" role="tablist" aria-label="Processing">
+              <button id="proc-tab-preview" class="lego-tab lego-tab-active" type="button" role="tab" aria-selected="true" data-lego-show="proc-panel-preview">Preview</button>
+              <button id="proc-tab-cleaning" class="lego-tab" type="button" role="tab" aria-selected="false" data-lego-show="proc-panel-cleaning">Cleaning</button>
+              <button id="proc-tab-edit" class="lego-tab" type="button" role="tab" aria-selected="false" data-lego-show="proc-panel-edit">Edit</button>
+              <button id="proc-tab-index" class="lego-tab" type="button" role="tab" aria-selected="false" data-lego-show="proc-panel-index">Index</button>
+              <button id="proc-tab-export" class="lego-tab" type="button" role="tab" aria-selected="false" data-lego-show="proc-panel-export">Export</button>
+              <div class="lego-tabs-trail" aria-hidden="true"></div>
+            </div>
+            <div class="lego-tab-panel">
+              <div id="proc-panel-preview" class="lego-tab-content">
+                <div id="preview-notice" class="section-notice lego-hidden" role="status"></div>
+                <div class="preview-toolbar">
+                  <button id="preview-prev-btn" class="lego-style-bttnhollow" type="button">Previous</button>
+                  <input id="preview-page-num" class="lego-style-input input-page preview-page-input" type="number" min="1" max="99999" value="1" aria-label="Page number" />
+                  <span id="preview-page-meta" class="preview-page-meta lego-style-muted"></span>
+                  <button id="preview-next-btn" class="lego-style-bttnhollow" type="button">Next</button>
+                </div>
+                <div class="preview-split">
+                  <div class="preview-pane">
+                    <h3>Source</h3>
+                    <div class="preview-frame">
+                      <img id="preview-source-img" alt="PDF page preview" />
+                      <p id="preview-source-empty" class="lego-description lego-style-muted">Upload a PDF to preview pages.</p>
+                    </div>
+                  </div>
+                  <div class="preview-pane">
+                    <h3>Markdown <span id="preview-md-badge" class="lego-style-muted"></span></h3>
+                    <div id="preview-markdown" class="markdown-preview markdown-rendered lego-style-scroll" aria-live="polite">
+                      Process pages to see Markdown here.
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="proc-panel-cleaning" class="lego-tab-content lego-hidden">
+                <div id="cleaning-notice" class="section-notice lego-hidden" role="status"></div>
+                <div class="cleaning-tools">
+                  <p class="lego-description lego-style-muted">
+                    Strip repeating headers/footers and page numbers from processed pages, while keeping
+                    real section headers (prologue, chapter, part, …). Preview changes page-by-page, then apply.
+                  </p>
+                  <div class="cleaning-options">
+                    <label class="cleaning-check">
+                      <input id="clean-opt-page-numbers" type="checkbox" checked />
+                      Remove page numbers
+                    </label>
+                    <label class="cleaning-check">
+                      <input id="clean-opt-running" type="checkbox" checked />
+                      Remove selected running headers / footers
+                    </label>
+                  </div>
+                  <label class="lego-label">
+                    Header/Footer pattern to strip
+                    <input
+                      id="clean-header-pattern"
+                      class="lego-style-input"
+                      type="text"
+                      placeholder="My Book Title   or   My Book Title*   or   re:^#\s*My Book Title"
+                    />
+                  </label>
+                  <p class="lego-description lego-style-muted fade-threshold-hint">
+                    Plain text is enough when only the folio changes (e.g. enter <code>My Book Title</code> to catch
+                    <code># My Book Title [xviii]</code>). For freer matching use <code>*</code> / <code>?</code>
+                    (e.g. <code>My Book Title*</code>), or <code>re:</code> plus a regular expression.
+                  </p>
+                  <div class="cleaning-candidates-wrap">
+                    <div class="cleaning-candidates-header">
+                      <span class="lego-label">Detected across pages</span>
+                      <button id="clean-analyze-btn" class="lego-style-bttnhollow" type="button">Re-scan</button>
+                    </div>
+                    <div id="clean-candidates" class="cleaning-candidates">
+                      <p class="lego-style-muted">Open this tab after OCR to detect repeating headers.</p>
+                    </div>
+                  </div>
+                  <div class="btn-row">
+                    <button id="clean-apply-btn" class="lego-style-bttnmain" type="button">Apply to all processed pages</button>
+                  </div>
+                </div>
+                <div class="preview-toolbar cleaning-toolbar">
+                  <button id="clean-prev-btn" class="lego-style-bttnhollow" type="button">Previous</button>
+                  <input id="clean-page-num" class="lego-style-input input-page preview-page-input" type="number" min="1" max="99999" value="1" aria-label="Cleaning page number" />
+                  <span id="clean-page-meta" class="preview-page-meta lego-style-muted"></span>
+                  <button id="clean-next-btn" class="lego-style-bttnhollow" type="button">Next</button>
+                  <div class="cleaning-view-toggle" role="group" aria-label="Markdown view">
+                    <button id="clean-view-rendered" class="lego-style-bttnhollow cleaning-view-btn is-active" type="button">Rendered</button>
+                    <button id="clean-view-raw" class="lego-style-bttnhollow cleaning-view-btn" type="button">Raw</button>
+                  </div>
+                </div>
+                <p id="clean-change-meta" class="lego-style-muted cleaning-change-meta"></p>
+                <div class="preview-split">
+                  <div class="preview-pane">
+                    <h3>Before</h3>
+                    <div id="clean-before" class="markdown-preview markdown-rendered lego-style-scroll cleaning-pane" aria-live="polite"></div>
+                  </div>
+                  <div class="preview-pane">
+                    <h3>After</h3>
+                    <div id="clean-after" class="markdown-preview markdown-rendered lego-style-scroll cleaning-pane" aria-live="polite"></div>
+                  </div>
+                </div>
+              </div>
+              <div id="proc-panel-edit" class="lego-tab-content lego-hidden">
+                <div id="edit-notice" class="section-notice lego-hidden" role="status"></div>
+                <div class="preview-toolbar edit-toolbar-row">
+                  <button id="edit-prev-btn" class="lego-style-bttnhollow" type="button">Previous</button>
+                  <input id="edit-page-num" class="lego-style-input input-page preview-page-input" type="number" min="1" max="99999" value="1" aria-label="Edit page number" />
+                  <span id="edit-page-meta" class="preview-page-meta lego-style-muted"></span>
+                  <button id="edit-next-btn" class="lego-style-bttnhollow" type="button">Next</button>
+                  <span id="edit-save-status" class="edit-save-status lego-style-muted" aria-live="polite"></span>
+                </div>
+                <div class="preview-split">
+                  <div class="preview-pane edit-source-pane">
+                    <h3>Source</h3>
+                    <div class="edit-source-bar" role="toolbar" aria-label="Source tools">
+                      <button type="button" id="edit-rescan-btn" class="lego-style-bttnsmall edit-source-btn" title="Re-OCR a selected region">Re-Scan</button>
+                      <span class="edit-fmt-sep" aria-hidden="true"></span>
+                      <button type="button" id="edit-extract-btn" class="lego-style-bttnsmall edit-source-btn" title="Save a selected region as an image">Extract Image</button>
+                    </div>
+                    <div class="preview-frame">
+                      <img id="edit-source-img" alt="PDF page for editing" />
+                      <p id="edit-source-empty" class="lego-description lego-style-muted">Upload a PDF to edit pages.</p>
+                    </div>
+                  </div>
+                  <div class="preview-pane edit-md-pane">
+                    <h3>Markdown <span id="edit-md-badge" class="lego-style-muted"></span></h3>
+                    <div class="edit-format-bar" role="toolbar" aria-label="Markdown formatting">
+                      <button type="button" class="lego-style-bttnsmall edit-fmt-btn" data-edit-fmt="bold" title="Bold" aria-label="Bold"><strong>B</strong></button>
+                      <button type="button" class="lego-style-bttnsmall edit-fmt-btn" data-edit-fmt="italic" title="Italic" aria-label="Italic"><em>I</em></button>
+                      <button type="button" class="lego-style-bttnsmall edit-fmt-btn" data-edit-fmt="strike" title="Strikethrough" aria-label="Strikethrough"><s>S</s></button>
+                      <button type="button" class="lego-style-bttnsmall edit-fmt-btn" data-edit-fmt="underline" title="Underline" aria-label="Underline"><u>U</u></button>
+                      <button type="button" class="lego-style-bttnsmall edit-fmt-btn" data-edit-fmt="code" title="Inline code" aria-label="Inline code"><code>`</code></button>
+                      <span class="edit-fmt-sep" aria-hidden="true"></span>
+                      <button type="button" class="lego-style-bttnsmall edit-fmt-btn" data-edit-fmt="h1" title="Heading 1" aria-label="Heading 1">H1</button>
+                      <button type="button" class="lego-style-bttnsmall edit-fmt-btn" data-edit-fmt="h2" title="Heading 2" aria-label="Heading 2">H2</button>
+                      <button type="button" class="lego-style-bttnsmall edit-fmt-btn" data-edit-fmt="h3" title="Heading 3" aria-label="Heading 3">H3</button>
+                      <span class="edit-fmt-sep" aria-hidden="true"></span>
+                      <div class="edit-fmt-menu">
+                        <button
+                          type="button"
+                          id="edit-list-menu-btn"
+                          class="lego-style-bttnsmall edit-fmt-btn"
+                          title="List"
+                          aria-label="List"
+                          aria-haspopup="menu"
+                          aria-expanded="false"
+                          aria-controls="edit-list-menu"
+                        >≡</button>
+                        <div id="edit-list-menu" class="edit-fmt-dropdown lego-hidden" role="menu" hidden>
+                          <button type="button" class="edit-fmt-dropdown-item" role="menuitem" data-edit-fmt="ul">• Bulleted</button>
+                          <button type="button" class="edit-fmt-dropdown-item" role="menuitem" data-edit-fmt="ol">1. Numbered</button>
+                          <div class="edit-fmt-dropdown-sep" role="separator" aria-hidden="true"></div>
+                          <button type="button" class="edit-fmt-dropdown-item" role="menuitem" data-edit-fmt="outdent">← Outdent</button>
+                          <button type="button" class="edit-fmt-dropdown-item" role="menuitem" data-edit-fmt="indent">→ Indent</button>
+                        </div>
+                      </div>
+                      <button type="button" class="lego-style-bttnsmall edit-fmt-btn" data-edit-fmt="quote" title="Block quote" aria-label="Block quote">""</button>
+                      <button type="button" class="lego-style-bttnsmall edit-fmt-btn" data-edit-fmt="link" title="Link" aria-label="Link">[]</button>
+                      <button type="button" class="lego-style-bttnsmall edit-fmt-btn" data-edit-fmt="footnote" title="Footnote" aria-label="Footnote">[^]</button>
+                      <button type="button" class="lego-style-bttnsmall edit-fmt-btn" data-edit-fmt="hr" title="Horizontal rule" aria-label="Horizontal rule">—</button>
+                      <span class="edit-fmt-sep" aria-hidden="true"></span>
+                      <button
+                        type="button"
+                        id="edit-insert-image-btn"
+                        class="lego-style-bttnsmall edit-fmt-btn edit-insert-image-btn"
+                        title="Insert a saved image"
+                        aria-label="Insert image"
+                      >Insert image</button>
+                      <span class="edit-fmt-sep" aria-hidden="true"></span>
+                      <button
+                        type="button"
+                        id="edit-view-toggle"
+                        class="lego-style-bttnsmall edit-fmt-btn edit-view-toggle"
+                        title="Toggle raw Markdown"
+                        aria-label="Toggle raw Markdown"
+                        aria-pressed="false"
+                      ><code>&lt;/&gt;</code></button>
+                    </div>
+                    <textarea
+                      id="edit-md-raw"
+                      class="markdown-preview markdown-raw edit-md-raw lego-style-scroll lego-hidden"
+                      spellcheck="true"
+                      aria-label="Raw Markdown editor"
+                    ></textarea>
+                    <div
+                      id="edit-md-rendered"
+                      class="markdown-preview markdown-rendered edit-md-rendered lego-style-scroll"
+                      contenteditable="true"
+                      spellcheck="true"
+                      role="textbox"
+                      aria-multiline="true"
+                      aria-label="Formatted Markdown editor"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+              <div id="proc-panel-index" class="lego-tab-content lego-hidden">
+                <div id="index-notice" class="section-notice lego-hidden" role="status"></div>
+                <p class="lego-description lego-style-muted">
+                  Build a linked Contents from part and chapter titles in your Markdown — not a copy of the print index.
+                  Point Scribe at the original index page(s) to replace, scan for titles, then edit the list before applying.
+                </p>
+                <div class="index-tools">
+                  <div class="index-title-row">
+                    <label class="lego-label" for="index-title">Title</label>
+                    <input id="index-title" class="lego-style-input" type="text" value="Contents" autocomplete="off" />
+                  </div>
+                  <div class="index-replace-row">
+                    <span class="lego-label" id="index-replace-label">Replace pages</span>
+                    <input
+                      id="index-replace-start"
+                      class="lego-style-input index-page-input"
+                      type="number"
+                      min="1"
+                      max="99999"
+                      inputmode="numeric"
+                      placeholder="from"
+                      aria-labelledby="index-replace-label"
+                    />
+                    <span class="lego-style-muted" aria-hidden="true">–</span>
+                    <input
+                      id="index-replace-end"
+                      class="lego-style-input index-page-input"
+                      type="number"
+                      min="1"
+                      max="99999"
+                      inputmode="numeric"
+                      placeholder="to"
+                      aria-labelledby="index-replace-label"
+                    />
+                  </div>
+                  <div class="index-actions">
+                    <button id="index-scan-btn" class="lego-style-bttnmain" type="button">Scan titles</button>
+                    <button id="index-add-btn" class="lego-style-bttnhollow" type="button">Add entry</button>
+                    <button id="index-apply-btn" class="lego-style-bttnhollow" type="button">Apply to pages</button>
+                    <span id="index-save-status" class="index-save-status lego-style-muted" aria-live="polite"></span>
+                  </div>
+                  <p id="index-meta" class="lego-style-muted index-meta"></p>
+                </div>
+                <div class="index-split">
+                  <div class="index-entries-pane">
+                    <h3>Entries</h3>
+                    <div id="index-entries" class="index-entries" role="list"></div>
+                  </div>
+                  <div class="index-preview-pane">
+                    <h3>Preview</h3>
+                    <div id="index-preview" class="markdown-preview markdown-rendered lego-style-scroll index-preview" aria-live="polite"></div>
+                  </div>
+                </div>
+              </div>
+              <div id="proc-panel-export" class="lego-tab-content lego-hidden">
+                <div id="export-notice" class="section-notice lego-hidden" role="status"></div>
+                <p class="lego-description lego-style-muted">
+                  Package your processed Markdown, images, footnotes, and Contents links into an EPUB.
+                  Metadata is saved with the project. Detect or look up to fill blanks, then edit anytime.
+                </p>
+                <div class="export-tools">
+                  <div class="export-meta-grid">
+                    <label class="lego-label" for="export-title">Title</label>
+                    <input id="export-title" class="lego-style-input" type="text" autocomplete="off" />
+                    <label class="lego-label" for="export-authors">Author(s)</label>
+                    <input id="export-authors" class="lego-style-input" type="text" autocomplete="off" placeholder="Name, or Name and Name" />
+                    <label class="lego-label" for="export-publisher">Publisher</label>
+                    <input id="export-publisher" class="lego-style-input" type="text" autocomplete="off" />
+                    <label class="lego-label" for="export-year">Year</label>
+                    <input id="export-year" class="lego-style-input export-year-input" type="text" inputmode="numeric" autocomplete="off" placeholder="YYYY" />
+                    <label class="lego-label" for="export-isbn">ISBN</label>
+                    <input id="export-isbn" class="lego-style-input" type="text" autocomplete="off" />
+                    <label class="lego-label" for="export-language">Language</label>
+                    <input id="export-language" class="lego-style-input" type="text" value="en" autocomplete="off" />
+                    <label class="lego-label" for="export-description">Description</label>
+                    <textarea id="export-description" class="lego-style-input export-textarea" rows="2" autocomplete="off"></textarea>
+                    <label class="lego-label" for="export-rights">Rights</label>
+                    <textarea id="export-rights" class="lego-style-input export-textarea" rows="2" autocomplete="off" placeholder="e.g. All rights reserved"></textarea>
+                  </div>
+                  <div class="export-actions">
+                    <button id="export-detect-btn" class="lego-style-bttnhollow" type="button">Detect from book</button>
+                    <button id="export-lookup-btn" class="lego-style-bttnhollow" type="button" title="Search Open Library using the title/author/ISBN above">Look up online</button>
+                    <button id="export-epub-btn" class="lego-style-bttnmain" type="button">Download EPUB</button>
+                  </div>
+                  <div id="export-lookup-results" class="export-lookup-results lego-hidden" role="listbox" aria-label="Lookup results"></div>
+                  <ul class="export-checklist lego-style-muted">
+                    <li>Front matter (pages before Contents) stays as separate sections; chapters split at Index entries.</li>
+                    <li>Merges within chapters: drops blank pages, rejoins hyphenated words, continues paragraphs and block quotes.</li>
+                    <li>Footnotes are renumbered across the book on export (editor pages may still show per-page numbers).</li>
+                    <li>Contents links from the Index tab resolve to chapter anchors in the ebook.</li>
+                    <li>Original print-index stub pages (after Apply) are omitted from the spine.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div id="cover-lightbox" class="cover-lightbox lego-hidden" role="dialog" aria-modal="true" aria-label="Cover full view">
+      <button type="button" id="cover-lightbox-close" class="cover-lightbox-close lego-style-bttnhollow" aria-label="Close">Close</button>
+      <img id="cover-lightbox-img" alt="Cover full size" />
+    </div>
+
+    <div id="vllm-fail-dialog" class="vllm-fail-dialog lego-hidden" role="alertdialog" aria-modal="true" aria-labelledby="vllm-fail-title">
+      <div class="vllm-fail-card">
+        <h3 id="vllm-fail-title">Faster OCR engine failed</h3>
+        <p class="lego-description">
+          vLLM did not start. The text below is the actual error, so a problem that can be fixed
+          (driver, missing runtime, out of memory, port in use) is visible.
+        </p>
+        <pre id="vllm-fail-detail" class="vllm-fail-detail"></pre>
+        <div class="btn-row">
+          <button id="vllm-fail-retry" class="lego-style-bttnmain" type="button">Try again</button>
+          <button id="vllm-fail-transformers" class="lego-style-bttnhollow" type="button">Use Transformers</button>
+          <button id="vllm-fail-abort" class="lego-style-bttnhollow" type="button">Abort</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="region-lightbox" class="region-lightbox lego-hidden" role="dialog" aria-modal="true" aria-labelledby="region-lightbox-title">
+      <div class="region-lightbox-bar">
+        <span id="region-lightbox-title" class="region-lightbox-title">Select a region</span>
+        <span id="region-lightbox-status" class="region-lightbox-status lego-style-muted"></span>
+        <button type="button" id="region-lightbox-cancel" class="lego-style-bttnhollow" aria-label="Cancel">Cancel</button>
+        <button type="button" id="region-lightbox-confirm" class="lego-style-bttnmain" disabled>Confirm</button>
+      </div>
+      <p id="region-lightbox-hint" class="region-lightbox-hint lego-style-muted">Click and drag on the page to select a region.</p>
+      <div id="region-stage" class="region-stage">
+        <img id="region-lightbox-img" alt="Source page for region selection" draggable="false" />
+        <div id="region-sel" class="region-sel lego-hidden" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <div id="insert-image-modal" class="lego-modal-container lego-style-scrim lego-hidden" role="dialog" aria-modal="true" aria-labelledby="insert-image-title">
+      <div class="lego-modal-content lego-style-modal insert-image-panel">
+        <div class="lego-modal-header">
+          <h3 id="insert-image-title">Insert image</h3>
+          <button type="button" id="insert-image-close" class="lego-style-bttnsmall" aria-label="Close">&times;</button>
+        </div>
+        <div class="lego-modal-body">
+          <p id="insert-image-empty" class="lego-description lego-style-muted">No extracted images yet. Use Extract Image on the source page.</p>
+          <div id="insert-image-grid" class="insert-image-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lego-modal-container lego-style-scrim lego-hidden" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+      <div class="lego-modal-content lego-style-modal" id="settings-modal-panel">
+        <div class="lego-modal-header">
+          <h3 id="settings-modal-title">Settings</h3>
+          <button type="button" id="settings-close-btn" class="lego-style-bttnsmall" aria-label="Close">&times;</button>
+        </div>
+        <div id="settings-gate-banner" class="lego-banner lego-style-bannerwarning lego-hidden" role="status">
+          Install <strong>LightOnOCR-2-1B</strong> under Models before leaving Settings.
+        </div>
+        <div class="lego-tab-folder lego-style-tabs lego-style-tabsactive settings-tabs">
+          <div class="lego-tabs" role="tablist" aria-label="Settings sections">
+            <button type="button" class="lego-tab lego-tab-active" role="tab" aria-selected="true" data-lego-show="settings-tab-general">General</button>
+            <button type="button" class="lego-tab" role="tab" aria-selected="false" data-lego-show="settings-tab-models">Models</button>
+            <button type="button" class="lego-tab" role="tab" aria-selected="false" data-lego-show="settings-tab-engine">Engine</button>
+            <div class="lego-tabs-trail" aria-hidden="true"></div>
+          </div>
+          <div class="lego-tab-panel">
+            <div id="settings-tab-general" class="lego-tab-content">
+              <div class="lego-section lego-style-section">
+                <h5>Primary colour</h5>
+                <div class="settings-color-row">
+                  <label class="settings-color-control" for="settings-primary-color">
+                    <span class="lego-swatch-chip lego-style-chip" id="settings-primary-swatch"></span>
+                    <input type="color" id="settings-primary-color" class="settings-color-input" value="#6e0a50" aria-label="Primary colour" />
+                  </label>
+                  <p class="settings-color-hex lego-style-muted" id="settings-primary-hex">#6e0a50</p>
+                </div>
+              </div>
+              <div class="lego-section lego-style-section">
+                <h5>Secondary colour</h5>
+                <div class="settings-color-row">
+                  <label class="settings-color-control" for="settings-secondary-color">
+                    <span class="lego-swatch-chip lego-style-chip" id="settings-secondary-swatch"></span>
+                    <input type="color" id="settings-secondary-color" class="settings-color-input" value="#fcff3d" aria-label="Secondary colour" />
+                  </label>
+                  <p class="settings-color-hex lego-style-muted" id="settings-secondary-hex">#fcff3d</p>
+                </div>
+              </div>
+              <div class="lego-section lego-style-section">
+                <h5>Dark mode</h5>
+                <label class="lego-toggle-row" for="settings-dark-toggle">
+                  <span class="lego-toggle-label" id="settings-dark-label">Dark</span>
+                  <span class="lego-style-toggle">
+                    <input type="checkbox" id="settings-dark-toggle" class="lego-toggle-input" checked />
+                    <span class="lego-toggle-slider"></span>
+                  </span>
+                </label>
+              </div>
+              <div class="settings-color-reset-row">
+                <button id="settings-reset-colors-btn" class="lego-style-bttnhollow" type="button">Reset colours to defaults</button>
+              </div>
+            </div>
+            <div id="settings-tab-models" class="lego-tab-content lego-hidden">
+              <p class="lego-description lego-style-muted">
+                Weights are stored on Pinokio shared drives and reused across reinstalls.
+              </p>
+              <div id="settings-models-list" class="settings-models-list"></div>
+            </div>
+            <div id="settings-tab-engine" class="lego-tab-content lego-hidden">
+              <div class="lego-section lego-style-section">
+                <h5>Default model</h5>
+                <label class="lego-label">
+                  Active OCR pack
+                  <select id="settings-ocr-engine" class="lego-style-input"></select>
+                </label>
+              </div>
+              <div class="lego-section lego-style-section">
+                <h5>Generation</h5>
+                <div class="field-row">
+                  <label class="lego-label">
+                    Temperature
+                    <input id="settings-temperature" class="lego-style-input" type="number" min="0" max="1.5" step="0.05" value="0.2" />
+                  </label>
+                  <label class="lego-label">
+                    Max tokens / page
+                    <input id="settings-max-tokens" class="lego-style-input" type="number" min="256" max="8192" step="64" value="2048" />
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="lego-modal-footer">
+          <button type="button" id="settings-done-btn" class="lego-style-bttnmain">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="lego-modal-container lego-style-scrim lego-hidden" id="edit-project-modal" role="dialog" aria-modal="true" aria-labelledby="edit-project-title">
+      <div class="lego-modal-content lego-style-modal" id="edit-project-panel">
+        <div class="lego-modal-header">
+          <h3 id="edit-project-title">Edit project</h3>
+          <button type="button" class="lego-style-bttnsmall" aria-label="Close" data-lego-hide="edit-project-modal">&times;</button>
+        </div>
+        <div id="edit-project-notice" class="section-notice lego-hidden" role="status"></div>
+        <label class="lego-label">
+          Name
+          <input id="edit-name" class="lego-style-input" type="text" />
+        </label>
+        <label class="lego-label">
+          Description
+          <input id="edit-desc" class="lego-style-input" type="text" />
+        </label>
+        <div class="lego-modal-footer">
+          <button type="button" class="lego-style-bttnhollow" data-lego-hide="edit-project-modal">Cancel</button>
+          <button type="button" id="edit-project-save" class="lego-style-bttnmain">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>
